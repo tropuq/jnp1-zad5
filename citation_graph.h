@@ -5,6 +5,10 @@
 #include <set>
 #include <memory>
 
+// TODO: wywalic to
+#include <iostream>
+using namespace std;
+
 class PublicationAlreadyCreated : public std::exception {
 	const char* what() const noexcept {
 		return "PublicationAlreadyCreated";
@@ -39,6 +43,32 @@ private:
 	std::shared_ptr<Node> root;
 	std::map<id_type, std::shared_ptr<Node>> nodes;
 	
+	void createHelper(const id_type &nw_node, std::vector<id_type> &nw_parents,
+	                  const std::vector<id_type> &parent_ids, size_t cur_par_id) {
+		auto &cur_par = parent_ids[cur_par_id];
+		auto &parent_children = nodes.find(cur_par)->second.get()->chi;
+		nw_parents.emplace_back(cur_par);
+		
+		// for adding current connection
+		try {
+			parent_children.emplace_back(nw_node);
+		}
+		catch(...) {
+			throw;
+		}
+		
+		if (cur_par_id + 1 < parent_ids.size()) {
+			// for adding other connections
+			try {
+				createHelper(nw_node, nw_parents, parent_ids, cur_par_id + 1);
+			}
+			catch(...) {
+				parent_children.pop_back();
+				throw;
+			}
+		}
+	}
+	
 public:
 	// Tworzy nowy graf. Tworzy także węzeł publikacji o identyfikatorze stem_id.
 	CitationGraph(const id_type &stem_id) {
@@ -48,8 +78,17 @@ public:
 
 	// Konstruktor przenoszący i przenoszący operator przypisania. Powinny być
 	// noexcept.
-	CitationGraph(CitationGraph<Publication> &&other) noexcept;
-	CitationGraph<Publication>& operator=(CitationGraph<Publication> &&other) noexcept;
+	CitationGraph(CitationGraph<Publication> &&other) noexcept {
+		root = move(other.root);
+		nodes = move(other.nodes);
+	}
+	CitationGraph<Publication>& operator=(CitationGraph<Publication> &&other) noexcept {
+		nodes.clear();
+		root.reset();
+		root = move(other.root);
+		nodes = move(other.nodes);
+		return *this;
+	}
 	
 	// Próba użycia konstruktora kopiującego lub kopiującego operatora przypisania
 	// dla obiektów klasy CitationGraph powinna zakończyć się błędem kompilacji.
@@ -69,8 +108,6 @@ public:
 	std::vector<id_type> get_children(const id_type &id) const {
 		if (!exists(id))
 			throw PublicationNotFound();
-		// auto &chi = nodes.find(id)->second.get()->chi;
-		// return std::vector(chi.begin(), chi.end());
 		return nodes.find(id)->second.get()->chi;
 	}
 
@@ -80,8 +117,6 @@ public:
 	std::vector<id_type> get_parents(const id_type &id) const {
 		if (!exists(id))
 			throw PublicationNotFound();
-		// auto &par = nodes.find(id)->second.get()->par;
-		// return std::vector(par.begin(), par.end());
 		return nodes.find(id)->second.get()->par;
 	}
 
@@ -108,7 +143,7 @@ public:
 		create(id, std::vector<id_type>{parent_id});
 	}
 	
-	void create(const id_type &id, const std::vector<id_type> &parent_ids) { // TODO: uodpornic sie na wyjatki od id_type
+	void create(const id_type &id, const std::vector<id_type> &parent_ids) {
 		if (exists(id))
 			throw PublicationAlreadyCreated();
 		for (auto &i : parent_ids)
@@ -117,15 +152,12 @@ public:
 		
 		auto it = nodes.emplace(id, new Node(id)).first;
 		
-		for (int i = 0; i < (int)parent_ids.size(); i++) {
-			try {
-				add_citation(id, parent_ids[i]);
-			}
-			catch(...) {
-				// TODO: usunac to co dodalismy do tej pory
-				nodes.erase(it);
-				throw;
-			}
+		try {
+			createHelper(id, it->second.get()->par, parent_ids, 0);
+		}
+		catch(...) {
+			nodes.erase(it);
+			throw;
 		}
 	}
 
@@ -134,15 +166,15 @@ public:
 	void add_citation(const id_type &child_id, const id_type &parent_id) {
 		if (!exists(child_id) || !exists(parent_id))
 			throw PublicationNotFound();
-		auto &chi = nodes.find(child_id)->second.get()->par;
-		auto &par = nodes.find(parent_id)->second.get()->chi;
+		auto &child_parents = nodes.find(child_id)->second.get()->par;
+		auto &parent_children = nodes.find(parent_id)->second.get()->chi;
 		
-		chi.emplace_back(parent_id);
+		child_parents.emplace_back(parent_id);
 		try {
-			par.emplace_back(child_id);
+			parent_children.emplace_back(child_id);
 		}
 		catch(...) {
-			chi.pop_back();
+			child_parents.pop_back();
 			throw;
 		}
 	}
