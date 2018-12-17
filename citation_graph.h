@@ -34,8 +34,8 @@ private:
 	
 	struct Node {
 		Publication pub;
-		std::vector<id_type> par;
-		std::vector<id_type> chi;
+		std::set<id_type> par;
+		std::set<id_type> chi;
 		Node(const id_type &p)
 			: pub(p) {}
 	};
@@ -43,15 +43,16 @@ private:
 	std::shared_ptr<Node> root;
 	std::map<id_type, std::shared_ptr<Node>> nodes;
 	
-	void createHelper(const id_type &nw_node, std::vector<id_type> &nw_parents,
+	void createHelper(const id_type &nw_node, std::set<id_type> &nw_parents,
 	                  const std::vector<id_type> &parent_ids, size_t cur_par_id) {
 		auto &cur_par = parent_ids[cur_par_id];
 		auto &parent_children = nodes.find(cur_par)->second.get()->chi;
-		nw_parents.emplace_back(cur_par);
+		nw_parents.emplace(cur_par);
 		
 		// for adding current connection
+		typename std::set<id_type>::iterator it;
 		try {
-			parent_children.emplace_back(nw_node);
+			it = parent_children.emplace(nw_node).first;
 		}
 		catch(...) {
 			throw;
@@ -63,7 +64,7 @@ private:
 				createHelper(nw_node, nw_parents, parent_ids, cur_par_id + 1);
 			}
 			catch(...) {
-				parent_children.pop_back();
+				parent_children.erase(it);
 				throw;
 			}
 		}
@@ -82,6 +83,7 @@ public:
 		root = move(other.root);
 		nodes = move(other.nodes);
 	}
+	
 	CitationGraph<Publication>& operator=(CitationGraph<Publication> &&other) noexcept {
 		nodes.clear();
 		root.reset();
@@ -108,7 +110,8 @@ public:
 	std::vector<id_type> get_children(const id_type &id) const {
 		if (!exists(id))
 			throw PublicationNotFound();
-		return nodes.find(id)->second.get()->chi;
+		auto &chi = nodes.find(id)->second.get()->chi;
+		return std::vector<id_type>(chi.begin(), chi.end());
 	}
 
 	// Zwraca listę identyfikatorów publikacji cytowanych przez publikację o podanym
@@ -117,7 +120,8 @@ public:
 	std::vector<id_type> get_parents(const id_type &id) const {
 		if (!exists(id))
 			throw PublicationNotFound();
-		return nodes.find(id)->second.get()->par;
+		auto &par = nodes.find(id)->second.get()->par;
+		return std::vector<id_type>(par.begin(), par.end());
 	}
 
 	// Sprawdza, czy publikacja o podanym identyfikatorze istnieje.
@@ -169,12 +173,12 @@ public:
 		auto &child_parents = nodes.find(child_id)->second.get()->par;
 		auto &parent_children = nodes.find(parent_id)->second.get()->chi;
 		
-		child_parents.emplace_back(parent_id);
+		auto it = child_parents.emplace(parent_id).first;
 		try {
-			parent_children.emplace_back(child_id);
+			parent_children.emplace(child_id);
 		}
 		catch(...) {
-			child_parents.pop_back();
+			child_parents.erase(it);
 			throw;
 		}
 	}
@@ -188,6 +192,8 @@ public:
 		if (id == get_root_id())
 			throw TriedToRemoveRoot();
 		// TODO: trzeba zrobic dfsa i wywalic co trzeba z mapy
-		// mozna skopiowac cala strukture przed usuwaniem, zeby uodpornic sie na exceptiony
+		// ja sie rozspojni to najpierw przejdz po wszystkim co musisz wywalic, wrzuc iteratory na jakas liste
+		// jak nie w miedzy czasie nie rzuci zaden wyjatek to potem wyrzucaj elementy z listy
+		// (usuwanie przez iterator nie rzuca wyjatkow)
 	}
 };
