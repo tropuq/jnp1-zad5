@@ -78,10 +78,10 @@ private:
 		if (par_erased[cur] == nodes[cur].get()->par.size()) {
 			to_erase.push_back(nodes.find(cur));
 			for (auto it : nodes[cur].get()->par) {
-				fam_erase.push_back(make_pair(&nodes[it].get()->chi, nodes[it].get()->chi.find(cur)));
+				fam_erase.emplace_back(&nodes[it].get()->chi, nodes[it].get()->chi.find(cur));
 			}
 			for (auto it : nodes[cur].get()->chi) {
-				fam_erase.push_back(make_pair(&nodes[it].get()->par, nodes[it].get()->par.find(cur)));
+				fam_erase.emplace_back(&nodes[it].get()->par, nodes[it].get()->par.find(cur));
 			}
 			for (auto it : nodes[cur].get()->chi) {
 				find_lost(deleted, it, par_erased, to_erase, fam_erase);
