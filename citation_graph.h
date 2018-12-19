@@ -1,13 +1,9 @@
 #pragma once
 
-#include <vector>
 #include <map>
-#include <set>
 #include <memory>
-
-// TODO: wywalic to
-#include <iostream>
-using namespace std;
+#include <set>
+#include <vector>
 
 class PublicationAlreadyCreated : public std::exception {
 	const char* what() const noexcept {
@@ -40,7 +36,7 @@ private:
 			: pub(p) {}
 	};
 
-	std::shared_ptr<Node> root;
+	std::weak_ptr<Node> root;
 	std::map<id_type, std::shared_ptr<Node>> nodes;
 
 	void createHelper(const id_type &nw_node, std::set<id_type> &nw_parents,
@@ -72,7 +68,7 @@ private:
 
 	void find_lost(const id_type &deleted, const id_type &cur, std::map<id_type, size_t> &par_erased,
 				   std::vector<typename std::map<id_type, std::shared_ptr<Node>>::iterator> &to_erase,
-				   std::vector<pair<std::set<id_type>*, typename std::set<id_type>::iterator>> &fam_erase) {
+				   std::vector<std::pair<std::set<id_type>*, typename std::set<id_type>::iterator>> &fam_erase) {
 		par_erased[cur]++;
 		if (par_erased[cur] == nodes[cur].get()->par.size()) {
 			to_erase.push_back(nodes.find(cur));
@@ -118,8 +114,8 @@ public:
 	// Zwraca identyfikator źródła. Metoda ta powinna być noexcept wtedy i tylko
 	// wtedy, gdy metoda Publication::get_id jest noexcept. Zamiast pytajnika należy
 	// wpisać stosowne wyrażenie.
-	id_type get_root_id() const noexcept(noexcept(root.get()->pub.get_id())) {
-		return root.get()->pub.get_id();
+	id_type get_root_id() const noexcept(noexcept(root.lock().get()->pub.get_id())) {
+		return root.lock().get()->pub.get_id();
 	}
 
 	// Zwraca listę identyfikatorów publikacji cytujących publikację o podanym
@@ -211,7 +207,7 @@ public:
 			throw TriedToRemoveRoot();
 		std::map<id_type, size_t> par_erased;
 		std::vector<typename std::map<id_type, std::shared_ptr<Node>>::iterator> to_erase;
-		std::vector<pair<std::set<id_type>*, typename std::set<id_type>::iterator>> fam_erase;
+		std::vector<std::pair<std::set<id_type>*, typename std::set<id_type>::iterator>> fam_erase;
 		par_erased[id] = nodes[id].get()->par.size() - 1;
 		find_lost(id, id, par_erased, to_erase, fam_erase);
 		for (auto fam : fam_erase){
