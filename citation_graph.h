@@ -70,19 +70,21 @@ private:
 		}
 	}
 
-	void find_lost(const id_type& deleted, const id_type& cur, std::map<id_type, size_t>& par_erased, std::vector<typename std::map<id_type, std::shared_ptr<Node>>::iterator>& to_erase,
-		std::vector<pair<std::set<id_type>*,typename std::set<id_type>::iterator> >& fam_erase) {
+	void find_lost(const id_type& deleted, const id_type& cur, std::map<id_type, size_t>& par_erased,
+				   std::vector<typename std::map<id_type, std::shared_ptr<Node>>::iterator>& to_erase,
+				   std::vector<pair<std::set<id_type>*,typename std::set<id_type>::iterator> >& fam_erase) 
+	{
 		par_erased[cur]++;
-		if(par_erased[cur] == nodes[cur].get()->par.size()){
+		if (par_erased[cur] == nodes[cur].get()->par.size()) {
 			to_erase.push_back(nodes.find(cur));
-			for (auto it = nodes[cur].get()->par.begin(); it != nodes[cur].get()->par.end(); it++) {
-				fam_erase.push_back(make_pair(&nodes[*it].get()->chi, nodes[*it].get()->chi.find(cur)));
+			for (auto it : nodes[cur].get()->par) {
+				fam_erase.push_back(make_pair(&nodes[it].get()->chi, nodes[it].get()->chi.find(cur)));
 			}
-			for (auto it = nodes[cur].get()->chi.begin(); it != nodes[cur].get()->chi.end(); it++) {
-				fam_erase.push_back(make_pair(&nodes[*it].get()->par, nodes[*it].get()->par.find(cur)));
+			for (auto it : nodes[cur].get()->chi) {
+				fam_erase.push_back(make_pair(&nodes[it].get()->par, nodes[it].get()->par.find(cur)));
 			}
-			for (auto it = nodes[cur].get()->chi.begin(); it != nodes[cur].get()->chi.end(); it++) {
-				find_lost(deleted, *it, par_erased, to_erase, fam_erase);
+			for (auto it : nodes[cur].get()->chi) {
+				find_lost(deleted, it, par_erased, to_erase, fam_erase);
 			}
 		}
 	}
@@ -213,11 +215,11 @@ public:
 		std::vector<pair<std::set<id_type>*,typename std::set<id_type>::iterator> > fam_erase;
 		par_erased[id]=nodes[id].get()->par.size()-1;
 		find_lost(id, id, par_erased, to_erase, fam_erase);
-		for(size_t i=0; i<fam_erase.size(); i++){
-			(*fam_erase[i].first).erase(fam_erase[i].second);
+		for(auto fam :fam_erase){
+			(*fam.first).erase(fam.second);
 		}
-		for(size_t i=0; i<to_erase.size(); i++){
-			nodes.erase(to_erase[i]);
+		for(auto toer : to_erase){
+			nodes.erase(toer);
 		}
 		// vector<id_type::iterator> vec;
 		// TODO: trzeba zrobic dfsa i wywalic co trzeba z mapy
