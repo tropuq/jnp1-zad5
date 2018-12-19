@@ -54,7 +54,7 @@ private:
 		try {
 			it = parent_children.emplace(nw_node).first;
 		}
-		catch(...) {
+		catch (...) {
 			throw;
 		}
 
@@ -63,7 +63,7 @@ private:
 			try {
 				createHelper(nw_node, nw_parents, parent_ids, cur_par_id + 1);
 			}
-			catch(...) {
+			catch (...) {
 				parent_children.erase(it);
 				throw;
 			}
@@ -177,7 +177,7 @@ public:
 		try {
 			createHelper(id, it->second.get()->par, parent_ids, 0);
 		}
-		catch(...) {
+		catch (...) {
 			nodes.erase(it);
 			throw;
 		}
@@ -195,7 +195,7 @@ public:
 		try {
 			parent_children.emplace(child_id);
 		}
-		catch(...) {
+		catch (...) {
 			child_parents.erase(it);
 			throw;
 		}
