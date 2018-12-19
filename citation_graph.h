@@ -31,7 +31,7 @@ template <typename Publication>
 class CitationGraph {
 private:
 	using id_type = typename Publication::id_type;
-	
+
 	struct Node {
 		Publication pub;
 		std::set<id_type> par;
@@ -39,16 +39,16 @@ private:
 		Node(const id_type &p)
 			: pub(p) {}
 	};
-	
+
 	std::shared_ptr<Node> root;
 	std::map<id_type, std::shared_ptr<Node>> nodes;
-	
+
 	void createHelper(const id_type &nw_node, std::set<id_type> &nw_parents,
 	                  const std::vector<id_type> &parent_ids, size_t cur_par_id) {
 		auto &cur_par = parent_ids[cur_par_id];
 		auto &parent_children = nodes.find(cur_par)->second.get()->chi;
 		nw_parents.emplace(cur_par);
-		
+
 		// for adding current connection
 		typename std::set<id_type>::iterator it;
 		try {
@@ -57,7 +57,7 @@ private:
 		catch(...) {
 			throw;
 		}
-		
+
 		if (cur_par_id + 1 < parent_ids.size()) {
 			// for adding other connections
 			try {
@@ -70,10 +70,9 @@ private:
 		}
 	}
 
-	void find_lost(const id_type& deleted, const id_type& cur, std::map<id_type, size_t>& par_erased,
-				   std::vector<typename std::map<id_type, std::shared_ptr<Node>>::iterator>& to_erase,
-				   std::vector<pair<std::set<id_type>*,typename std::set<id_type>::iterator> >& fam_erase) 
-	{
+	void find_lost(const id_type &deleted, const id_type &cur, std::map<id_type, size_t> &par_erased,
+				   std::vector<typename std::map<id_type, std::shared_ptr<Node>>::iterator> &to_erase,
+				   std::vector<pair<std::set<id_type>*, typename std::set<id_type>::iterator>> &fam_erase) {
 		par_erased[cur]++;
 		if (par_erased[cur] == nodes[cur].get()->par.size()) {
 			to_erase.push_back(nodes.find(cur));
@@ -88,11 +87,11 @@ private:
 			}
 		}
 	}
-	
+
 public:
 	// Tworzy nowy graf. Tworzy także węzeł publikacji o identyfikatorze stem_id.
 	CitationGraph(const id_type &stem_id) {
-		auto nd = nodes.emplace(stem_id, new Node(stem_id)).first->second;
+		auto nd = nodes.emplace(stem_id, std::make_shared<Node>(stem_id)).first->second;
 		root = nd;
 	}
 
@@ -102,7 +101,7 @@ public:
 		root = move(other.root);
 		nodes = move(other.nodes);
 	}
-	
+
 	CitationGraph<Publication>& operator=(CitationGraph<Publication> &&other) noexcept {
 		nodes.clear();
 		root.reset();
@@ -110,12 +109,12 @@ public:
 		nodes = move(other.nodes);
 		return *this;
 	}
-	
+
 	// Próba użycia konstruktora kopiującego lub kopiującego operatora przypisania
 	// dla obiektów klasy CitationGraph powinna zakończyć się błędem kompilacji.
 	CitationGraph(CitationGraph<Publication>&) = delete;
 	CitationGraph<Publication>& operator=(CitationGraph<Publication>&) = delete;
-	
+
 	// Zwraca identyfikator źródła. Metoda ta powinna być noexcept wtedy i tylko
 	// wtedy, gdy metoda Publication::get_id jest noexcept. Zamiast pytajnika należy
 	// wpisać stosowne wyrażenie.
@@ -165,16 +164,16 @@ public:
 	void create(const id_type &id, const id_type &parent_id) {
 		create(id, std::vector<id_type>{parent_id});
 	}
-	
+
 	void create(const id_type &id, const std::vector<id_type> &parent_ids) {
 		if (exists(id))
 			throw PublicationAlreadyCreated();
 		for (auto &i : parent_ids)
 			if (!exists(i))
 				throw PublicationNotFound();
-		
-		auto it = nodes.emplace(id, new Node(id)).first;
-		
+
+		auto it = nodes.emplace(id, std::make_shared<Node>(id)).first;
+
 		try {
 			createHelper(id, it->second.get()->par, parent_ids, 0);
 		}
@@ -191,7 +190,7 @@ public:
 			throw PublicationNotFound();
 		auto &child_parents = nodes.find(child_id)->second.get()->par;
 		auto &parent_children = nodes.find(parent_id)->second.get()->chi;
-		
+
 		auto it = child_parents.emplace(parent_id).first;
 		try {
 			parent_children.emplace(child_id);
@@ -205,26 +204,21 @@ public:
 	// Usuwa publikację o podanym identyfikatorze. Zgłasza wyjątek
 	// PublicationNotFound, jeśli żądana publikacja nie istnieje. Zgłasza wyjątek
 	// TriedToRemoveRoot przy próbie usunięcia pierwotnej publikacji.
-	void remove(const id_type &id) { // TODO: uodpornic sie na wyjatki od id_type
+	void remove(const id_type &id) {
 		if (!exists(id))
 			throw PublicationNotFound();
 		if (id == get_root_id())
 			throw TriedToRemoveRoot();
 		std::map<id_type, size_t> par_erased;
 		std::vector<typename std::map<id_type, std::shared_ptr<Node>>::iterator> to_erase;
-		std::vector<pair<std::set<id_type>*,typename std::set<id_type>::iterator> > fam_erase;
-		par_erased[id]=nodes[id].get()->par.size()-1;
+		std::vector<pair<std::set<id_type>*, typename std::set<id_type>::iterator>> fam_erase;
+		par_erased[id] = nodes[id].get()->par.size() - 1;
 		find_lost(id, id, par_erased, to_erase, fam_erase);
-		for(auto fam :fam_erase){
+		for (auto fam : fam_erase){
 			(*fam.first).erase(fam.second);
 		}
-		for(auto toer : to_erase){
+		for (auto toer : to_erase){
 			nodes.erase(toer);
 		}
-		// vector<id_type::iterator> vec;
-		// TODO: trzeba zrobic dfsa i wywalic co trzeba z mapy
-		// ja sie rozspojni to najpierw przejdz po wszystkim co musisz wywalic, wrzuc iteratory na jakas liste
-		// jak nie w miedzy czasie nie rzuci zaden wyjatek to potem wyrzucaj elementy z listy
-		// (usuwanie przez iterator nie rzuca wyjatkow)
 	}
 };
