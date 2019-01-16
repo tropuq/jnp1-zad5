@@ -4,6 +4,8 @@
 #include <memory>
 #include <set>
 #include <vector>
+#include <iostream>
+using namespace std;
 
 class PublicationAlreadyCreated : public std::exception {
 	const char* what() const noexcept {
@@ -167,7 +169,9 @@ public:
 		for (auto &i : parent_ids)
 			if (!exists(i))
 				throw PublicationNotFound();
-
+		if (parent_ids.empty())
+			throw PublicationNotFound();
+			
 		auto it = nodes.emplace(id, std::make_shared<Node>(id)).first;
 
 		try {
@@ -186,13 +190,14 @@ public:
 			throw PublicationNotFound();
 		auto &child_parents = nodes.find(child_id)->second.get()->par;
 		auto &parent_children = nodes.find(parent_id)->second.get()->chi;
-
-		auto it = child_parents.emplace(parent_id).first;
+		
+		auto it = child_parents.emplace(parent_id);
 		try {
 			parent_children.emplace(child_id);
 		}
 		catch (...) {
-			child_parents.erase(it);
+			if (it.second)
+				child_parents.erase(it.first);
 			throw;
 		}
 	}
