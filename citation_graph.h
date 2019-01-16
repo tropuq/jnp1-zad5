@@ -4,8 +4,6 @@
 #include <memory>
 #include <set>
 #include <vector>
-#include <iostream>
-using namespace std;
 
 class PublicationAlreadyCreated : public std::exception {
 	const char* what() const noexcept {
